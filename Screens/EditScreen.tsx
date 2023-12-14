@@ -8,21 +8,46 @@ import { CustomText } from "../Components/CustomText";
 import { ScrollView, TextInput } from "react-native-gesture-handler";
 import { AntDesign } from "@expo/vector-icons";
 import { FormBlock, QuestionType } from "../Models/Question";
+import { atom, useRecoilState, useRecoilValue } from "recoil";
 export type EditScreenProps = StackScreenProps<RootStackParamList, "Edit">;
 
-let id = 0;
-function getId() {
-  return id++;
-}
+
+//MARKER: ATOM/SELECTORS
+const formListState = atom<FormBlock[]>({
+  key:'FormList',
+  default:[],
+})
+
+
+
 
 const defaultFormBlock = {
-  id: getId(),
   type: QuestionType.SHORTANSWER,
   question: "",
   choice: undefined,
   required: false,
 };
+function BlockItemInputField(type:QuestionType){
+  //get list state(array) from recoil 
+  //compute index 
+  //after setting value -> replace item with index
 
+  switch(type){
+    case QuestionType.SHORTANSWER:
+      return       <TextInput
+      autoCorrect={false}
+      multiline={true}
+      // onChangeText={}
+      // style={{ marginHorizontal:8,backgroundColor:'gray',height:reset needed }}
+      value={'daf'}
+    />
+    default:
+      <Text>
+        not yet
+      </Text>
+
+  }
+}
 function BlockItem(props: { item: FormBlock }) {
   //TODO: modify,delete,duplicate state with recoil
   const [title, setTitle] = useState(props.item.question);
@@ -45,6 +70,7 @@ function BlockItem(props: { item: FormBlock }) {
               console.log("toggle bottom sheet modal")
             }}/>
 
+            {BlockItemInputField(props.item.type)}
       {/* TODO: bottom modal sheet for type*/}
       {/* TODO: conditionally render input Field */}
 
@@ -52,13 +78,17 @@ function BlockItem(props: { item: FormBlock }) {
   );
 }
 function EditScreen({ navigation, route }: EditScreenProps) {
-  const [testData,setTestData] = useState<FormBlock[]>([]);
+  // const [testData,setTestData] = useState<FormBlock[]>([]);
+  // const formList = useRecoilValue(formListState);
+  const [formList,setFormList] = useRecoilState(formListState);
+  
+
   useEffect(()=>{
-    console.log('testData set!',testData);
-  },[testData]);
+    console.log('testData set!',formList);
+  },[formList]);
 
   const onCreateBlockPress = () => {
-    setTestData([...testData,{...defaultFormBlock}]);
+    setFormList([...formList,{...defaultFormBlock}]);
   };
   return (
     <View style={styles.container}>
@@ -73,7 +103,7 @@ function EditScreen({ navigation, route }: EditScreenProps) {
         </View>
 
         <TitleWithDescription />
-        {testData.map((item,index) => (
+        {formList.map((item,index) => (
           <BlockItem key={index} item={item} />
         ))}
       </ScrollView>

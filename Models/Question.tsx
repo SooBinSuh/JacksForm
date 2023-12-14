@@ -1,5 +1,4 @@
 export type FormBlock = {
-    id:number;
     type: QuestionType;
     question:string;
     choice : string[] | undefined;
