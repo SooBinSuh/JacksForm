@@ -13,3 +13,5 @@ export const CustomText = ({ style,children }: PropsWithChildren<CustomTextProps
 };
 
 export const DEFAILT_FONTSIZE = 20;
+
+

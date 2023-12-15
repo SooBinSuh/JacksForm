@@ -13,11 +13,13 @@ import {
 } from "react-native";
 import { FontAwesome5 } from "@expo/vector-icons";
 import { FontAwesome } from "@expo/vector-icons";
+import { Fontisto } from "@expo/vector-icons";
 import { RootStackParamList } from "../App";
 import { StackScreenProps } from "@react-navigation/stack";
 import { CustomText, DEFAILT_FONTSIZE } from "../Components/CustomText";
 import { ScrollView, TextInput } from "react-native-gesture-handler";
 import { AntDesign } from "@expo/vector-icons";
+
 import {
   Choice,
   ChoiceType,
@@ -32,7 +34,7 @@ const formListState = atom<FormBlock[]>({
   key: "FormList",
   default: [],
 });
-const formIsEditState = atom({
+export const formIsEditState = atom({
   key: "FormIsEdit",
   default: true,
 });
@@ -42,7 +44,7 @@ const formIsEditState = atom({
 //MARKER: default data only for dev
 const defaultFormBlock: FormBlock = {
   title: "",
-  type: QuestionType.MULTIPLECHOICE,
+  type: QuestionType.CHECKBOXES,
   responseString: undefined,
   choice: [{ title: "Option 1", isSelected: false, type: ChoiceType.OPTION }],
   isRequired: false,
@@ -112,7 +114,7 @@ function BlockItemInputField(item: FormBlock) {
     });
     setFormList(newList);
   };
-  const removeChoice = (choiceIndex:number) => {
+  const removeChoice = (choiceIndex: number) => {
     const newChoiceList = removeItemAtIndex(item.choice, choiceIndex);
     const newList = replaceItemAtIndex(formList, index, {
       ...item,
@@ -132,7 +134,6 @@ function BlockItemInputField(item: FormBlock) {
           onChangeText={editResponseString}
           style={{
             marginHorizontal: 8,
-            backgroundColor: "lightblue",
             height: 35,
           }}
           value={item.responseString}
@@ -156,90 +157,150 @@ function BlockItemInputField(item: FormBlock) {
         />
       );
     case QuestionType.MULTIPLECHOICE:
+    case QuestionType.CHECKBOXES:
       return (
         <View>
-          {item.choice
-            .map((item, index) => (
-              <View
-                key={index}
-                style={{
-                  flexDirection: "row",
-                  flex: 1,
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginStart: 4,
-                }}
-              >
-                <View
-                  style={{ flexDirection: "row", backgroundColor: "lightblue" }}
-                >
-                  {isEdit ? (
-                    <FontAwesome5
-                      name="circle"
-                      size={24}
-                      color=  {item.type == ChoiceType.OPTION ? "black" : "lightgray"}
-                    />
-                  ) : (
-                    <FontAwesome5.Button
-                      name="circle"
-                      size={24}
-                      color="black"
-                      enabled={true}
-                      onPress={() => {
-                        console.log("click");
-                      }}
-                    />
-                  )}
-                  <TextInput
-                    style={{
-                      fontSize: DEFAILT_FONTSIZE,
-                      color:
-                        item.type == ChoiceType.OPTION ? "black" : "lightgray",
-                    }}
-                    editable={isEdit && item.type === ChoiceType.OPTION}
-                    value={item.title}
-                    onChangeText={(value: string) =>
-                      editChoiceTitle(index, value)
-                    }
-                  />
-                </View>
-                <FontAwesome.Button name="remove" backgroundColor={'white'} size={24} color="black" onPress={()=>removeChoice(index)}/>
-              </View>
-            ))}
-          {/* Add option or add 'other' */}
-          <View
-            style={{
-              flexDirection: "row",
-              marginStart: 10,
-              alignItems: "center",
-            }}
-          >
-            <FontAwesome5
-              name="circle"
-              size={24}
-              color="lightgray"
-              enabled={false}
+          {item.choice.map((choiceItem, index) => (
+            <MultipleChoiceItem
+              key={index}
+              formBlockItem={item}
+              choiceItem={choiceItem}
+              index={index}
+              editChoiceTitle={editChoiceTitle}
+              removeChoice={removeChoice}
             />
-            <Button
-              color="lightgray"
-              title="Add option"
-              onPress={() => addChoice(ChoiceType.OPTION)}
-            />
-            {filteredOption.length === item.choice.length && (
-              <>
-                <CustomText>or</CustomText>
-                <Button
-                  title="add 'Other'"
-                  onPress={() => addChoice(ChoiceType.Other)}
-                />
-              </>
-            )}
-          </View>
+          ))}
+          <ChoiceAddButton
+            item={item}
+            choiceOptions={filteredOption}
+            addChoice={addChoice}
+          />
         </View>
       );
+
     default:
       return <Text>DEFAULT</Text>;
   }
+}
+function ChoiceAddButton(props: {
+  item: FormBlock;
+  choiceOptions: Choice[];
+  addChoice: (value: ChoiceType) => void;
+}) {
+  const checkBoxIconName = "checkbox-passive";
+
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        marginStart: 10,
+        justifyContent:'flex-start',
+        alignItems: "center",
+      }}
+    >
+      {props.item.type == QuestionType.MULTIPLECHOICE ? (
+        <FontAwesome5
+          name="circle"
+          size={24}
+          color="lightgray"
+          enabled={false}
+        />
+      ) : (
+        <Fontisto.Button name={checkBoxIconName} size={24} color="black" backgroundColor='white' style={{ overflow:'hidden' }}/>
+      )}
+
+      <Button
+        color="lightgray"
+        title="Add option"
+        onPress={() => props.addChoice(ChoiceType.OPTION)}
+      />
+      {props.choiceOptions.length === props.item.choice.length && (
+        <>
+          <CustomText>or</CustomText>
+          <Button
+            title="add 'Other'"
+            onPress={() => props.addChoice(ChoiceType.Other)}
+          />
+        </>
+      )}
+    </View>
+  );
+}
+export function MultipleChoiceItem(props: {
+  formBlockItem: FormBlock;
+  choiceItem: Choice;
+  index: number;
+  editChoiceTitle: (index: number, value: string) => void;
+  removeChoice: (index: number) => void;
+}) {
+  const isEdit = useRecoilValue(formIsEditState);
+  const checkBoxIconName = props.choiceItem.isSelected
+    ? "checkbox-active"
+    : "checkbox-passive";
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        flex: 1,
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginStart: 4,
+      }}
+    >
+      <View style={{ flexDirection: "row" }}>
+        {isEdit ? (
+          props.formBlockItem.type == QuestionType.MULTIPLECHOICE ? (
+            <FontAwesome5
+              name="circle"
+              size={24}
+              color={
+                props.choiceItem.type == ChoiceType.OPTION
+                  ? "black"
+                  : "lightgray"
+              }
+            />
+          ) : (
+            <Fontisto name={checkBoxIconName} size={24} color="black" />
+          )
+        ) : //  <Text>asdf</Text>
+        props.formBlockItem.type == QuestionType.MULTIPLECHOICE ? (
+          <FontAwesome5.Button
+            name="circle"
+            size={24}
+            color="black"
+            enabled={true}
+            onPress={() => {
+              console.log("click");
+            }}
+          />
+        ) : (
+          <Fontisto.Button name={checkBoxIconName} size={24} color="black" />
+        )}
+        <TextInput
+          style={{
+            marginStart: 8,
+            fontSize: DEFAILT_FONTSIZE,
+            color:
+              props.choiceItem.type == ChoiceType.OPTION
+                ? "black"
+                : "lightgray",
+          }}
+          editable={isEdit && props.choiceItem.type === ChoiceType.OPTION}
+          value={props.choiceItem.title}
+          onChangeText={(value: string) =>
+            props.editChoiceTitle(props.index, value)
+          }
+        />
+      </View>
+      <FontAwesome.Button
+        name="remove"
+        backgroundColor={"white"}
+        size={24}
+        color="black"
+        onPress={() => props.removeChoice(props.index)}
+      />
+    </View>
+  );
 }
 
 //MARKER: Array Item CRUD helper function
@@ -343,6 +404,7 @@ function BlockItem(props: { item: FormBlock }) {
     </View>
   );
 }
+
 function EditScreen({ navigation, route }: EditScreenProps) {
   const [formList, setFormList] = useRecoilState(formListState);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -418,7 +480,6 @@ function TitleWithDescription() {
     <>
       <View
         style={{
-          backgroundColor: "lightblue",
           paddingVertical: 10,
         }}
       >
