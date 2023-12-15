@@ -11,12 +11,18 @@ import {
   TextInputChangeEventData,
   Switch,
 } from "react-native";
+import { FontAwesome5 } from "@expo/vector-icons";
 import { RootStackParamList } from "../App";
 import { StackScreenProps } from "@react-navigation/stack";
-import { CustomText } from "../Components/CustomText";
+import { CustomText, DEFAILT_FONTSIZE } from "../Components/CustomText";
 import { ScrollView, TextInput } from "react-native-gesture-handler";
 import { AntDesign } from "@expo/vector-icons";
-import { FormBlock, QuestionType } from "../Models/Question";
+import {
+  Choice,
+  ChoiceType,
+  FormBlock,
+  QuestionType,
+} from "../Models/Question";
 import { atom, useRecoilState, useRecoilValue } from "recoil";
 export type EditScreenProps = StackScreenProps<RootStackParamList, "Edit">;
 
@@ -32,11 +38,12 @@ const formIsEditState = atom({
 
 //MARKER: SELECTORS
 
-const defaultFormBlock = {
+//MARKER: default data only for dev
+const defaultFormBlock: FormBlock = {
   title: "",
-  type: QuestionType.SHORTANSWER,
+  type: QuestionType.MULTIPLECHOICE,
   responseString: undefined,
-  choice: undefined,
+  choice: [{ title: "Option 1", isSelected: false, type: ChoiceType.OPTION }],
   isRequired: false,
 };
 
@@ -47,10 +54,48 @@ function BlockItemInputField(item: FormBlock) {
   const [formList, setFormList] = useRecoilState(formListState);
   const index = formList.findIndex((listItem) => item === listItem);
 
+  const filteredOption = item.choice.filter(
+    (value) => value.type === ChoiceType.OPTION
+  );
+
   const editResponseString = (value: string) => {
     const newList = replaceItemAtIndex(formList, index, {
       ...item,
       responseString: value,
+    });
+    setFormList(newList);
+  };
+  const editChoiceTitle = (choiceIndex: number, value: string) => {
+    const newChoice = replaceItemAtIndex(item.choice, choiceIndex, {
+      ...item.choice[choiceIndex],
+      title: value,
+    });
+    const newList = replaceItemAtIndex(formList, index, {
+      ...item,
+      choice: newChoice,
+    });
+    setFormList(newList);
+  };
+  const addChoice = (choiceType: ChoiceType) => {
+    const optionChoice = item.choice.filter(
+      (value) => value.type === ChoiceType.OPTION
+    );
+    const newChoice: Choice = {
+      title:
+        choiceType == ChoiceType.Other
+          ? "Other..."
+          : "Option " + (optionChoice.length + 1),
+      isSelected: false,
+      type: choiceType,
+    };
+    const newChoiceList = addItemAfterIndex(
+      item.choice,
+      item.choice.length,
+      newChoice
+    );
+    const newList = replaceItemAtIndex(formList, index, {
+      ...item,
+      choice: newChoiceList,
     });
     setFormList(newList);
   };
@@ -89,23 +134,118 @@ function BlockItemInputField(item: FormBlock) {
           value={item.responseString}
         />
       );
+    case QuestionType.MULTIPLECHOICE:
+      return (
+        <View>
+          {item.choice
+            .filter((item) => item.type === ChoiceType.OPTION)
+            .map((item, index) => (
+              <View
+                key={index}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  margin: 4,
+                }}
+              >
+                {isEdit ? (
+                  <FontAwesome5
+                    name="circle"
+                    size={24}
+                    color="black"
+                    enabled={false}
+                  />
+                ) : (
+                  <FontAwesome5.Button
+                    name="circle"
+                    size={24}
+                    color="black"
+                    enabled={false}
+                    onPress={() => {
+                      console.log("click");
+                    }}
+                  />
+                )}
+                <TextInput
+                  style={{
+                    fontSize: DEFAILT_FONTSIZE,
+                    color:
+                      item.type == ChoiceType.OPTION ? "black" : "lightgray",
+                  }}
+                  editable={item.type === ChoiceType.OPTION}
+                  value={item.title}
+                  onChangeText={(value: string) =>
+                    editChoiceTitle(index, value)
+                  }
+                />
+              </View>
+            ))}
+          {item.choice
+            .filter((item) => item.type === ChoiceType.Other)
+            .map((item, index) => (
+              <View
+                key={-1}
+                style={{
+                  flexDirection: "row",
+                  marginStart: 8,
+                }}
+              >
+                <FontAwesome5
+                  name="circle"
+                  size={24}
+                  color="lightgray"
+                  enabled={false}
+                />
+                <CustomText style={{color:'darkgray'}}>{item.title}</CustomText>
+                {/* <Text style={{}}>asdf</Text> */}
+              </View>
+              
+            ))}
+          {/* Add option or add 'other' */}
+          <View
+            style={{
+              flexDirection: "row",
+              marginStart: 10,
+              alignItems: "center",
+            }}
+          >
+            <FontAwesome5
+              name="circle"
+              size={24}
+              color="lightgray"
+              enabled={false}
+            />
+            <Button
+              color="lightgray"
+              title="Add option"
+              onPress={() => addChoice(ChoiceType.OPTION)}
+            />
+            {filteredOption.length === item.choice.length && (
+              <>
+                <CustomText>or</CustomText>
+                <Button
+                  title="add 'Other'"
+                  onPress={() => addChoice(ChoiceType.Other)}
+                />
+              </>
+            )}
+          </View>
+        </View>
+      );
     default:
-      <Text>not yet</Text>;
+      return <Text>DEFAULT</Text>;
   }
 }
 
-
 //MARKER: Array Item CRUD helper function
-function duplicateItemAtIndex(arr:FormBlock[],index:number){
-  let item = {...arr[index]}
-  return [...arr.slice(0, index+1), item, ...arr.slice(index + 1)];  
+function duplicateItemAtIndex(arr: FormBlock[], index: number) {
+  let item = { ...arr[index] };
+  return [...arr.slice(0, index + 1), item, ...arr.slice(index + 1)];
 }
-
-function replaceItemAtIndex(
-  arr: FormBlock[],
-  index: number,
-  newValue: FormBlock
-) {
+function addItemAfterIndex<T>(arr: T[], index: number, newValue: T) {
+  return [...arr.slice(0, index + 1), newValue, ...arr.slice(index + 1)];
+}
+function replaceItemAtIndex<T>(arr: T[], index: number, newValue: T) {
   return [...arr.slice(0, index), newValue, ...arr.slice(index + 1)];
 }
 
@@ -113,13 +253,18 @@ function removeItemAtIndex(arr: FormBlock[], index: number) {
   return [...arr.slice(0, index), ...arr.slice(index + 1)];
 }
 
-function BlockItem(props: { item: FormBlock}) {
-  //TODO: modify,delete,duplicate state with recoil
-  const [title, setTitle] = useState(props.item.title);
+function BlockItem(props: { item: FormBlock }) {
   const [titleHeight, setTitleHeight] = useState(0);
   const [formList, setFormList] = useRecoilState(formListState);
   const index = formList.findIndex((listItem) => props.item === listItem);
 
+  const editTitle = (value: string) => {
+    const newList = replaceItemAtIndex(formList, index, {
+      ...props.item,
+      title: value,
+    });
+    setFormList(newList);
+  };
   const toggleIsRequired = (value: boolean) => {
     const newList = replaceItemAtIndex(formList, index, {
       ...props.item,
@@ -127,15 +272,15 @@ function BlockItem(props: { item: FormBlock}) {
     });
     setFormList(newList);
   };
-  const onDuplicateBlockPress = ()=>{
-    const newList = duplicateItemAtIndex(formList,index);
+  const onDuplicateBlockPress = () => {
+    const newList = duplicateItemAtIndex(formList, index);
     setFormList(newList);
-  }
-  const onDeleteBlockPress = ()=>{
-    const newList = removeItemAtIndex(formList,index);
+  };
+  const onDeleteBlockPress = () => {
+    const newList = removeItemAtIndex(formList, index);
     setFormList(newList);
-  }
-  
+  };
+
   return (
     <View
       style={{
@@ -150,7 +295,7 @@ function BlockItem(props: { item: FormBlock}) {
         placeholder="Question"
         autoCorrect={false}
         multiline={false}
-        onChangeText={setTitle}
+        onChangeText={editTitle}
         onContentSizeChange={(event) => {
           setTitleHeight(event.nativeEvent.contentSize.height);
         }}
@@ -159,7 +304,7 @@ function BlockItem(props: { item: FormBlock}) {
           height: Math.max(35, titleHeight),
           backgroundColor: "lightgray",
         }}
-        value={title}
+        value={props.item.title}
       />
       <Button
         title={props.item.type}
@@ -186,8 +331,8 @@ function BlockItem(props: { item: FormBlock}) {
           onValueChange={toggleIsRequired}
           value={props.item.isRequired}
         />
-        <Button title="복제"  onPress={onDuplicateBlockPress}/>
-        <Button title="삭제" onPress={onDeleteBlockPress}/>
+        <Button title="복제" onPress={onDuplicateBlockPress} />
+        <Button title="삭제" onPress={onDeleteBlockPress} />
       </View>
       {/* TODO: bottom modal sheet for type*/}
     </View>
@@ -198,19 +343,17 @@ function EditScreen({ navigation, route }: EditScreenProps) {
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
-    console.log("testData set!", formList);
+    console.log("formList count length", formList.length);
   }, [formList]);
 
   //아이템 추가 콜백
   const onCreateBlockPress = () => {
     setFormList([...formList, { ...defaultFormBlock }]);
-    //list state 업데이트 이후 스크롤
     setTimeout(
       () => scrollViewRef?.current?.scrollToEnd({ animated: true }),
       500
     );
   };
-
 
   return (
     <View style={styles.container}>
@@ -226,7 +369,7 @@ function EditScreen({ navigation, route }: EditScreenProps) {
 
         <TitleWithDescription />
         {formList.map((item, index) => (
-          <BlockItem key={index} item={item}/>
+          <BlockItem key={index} item={item} />
         ))}
       </ScrollView>
       <View style={styles.toolsContainer}>
