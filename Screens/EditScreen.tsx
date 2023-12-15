@@ -12,6 +12,7 @@ import {
   Switch,
 } from "react-native";
 import { FontAwesome5 } from "@expo/vector-icons";
+import { FontAwesome } from "@expo/vector-icons";
 import { RootStackParamList } from "../App";
 import { StackScreenProps } from "@react-navigation/stack";
 import { CustomText, DEFAILT_FONTSIZE } from "../Components/CustomText";
@@ -58,6 +59,7 @@ function BlockItemInputField(item: FormBlock) {
     (value) => value.type === ChoiceType.OPTION
   );
 
+  //MARKER: Intents
   const editResponseString = (value: string) => {
     const newList = replaceItemAtIndex(formList, index, {
       ...item,
@@ -76,6 +78,8 @@ function BlockItemInputField(item: FormBlock) {
     });
     setFormList(newList);
   };
+
+  //after adding choice, sort so other comes at bottom
   const addChoice = (choiceType: ChoiceType) => {
     const optionChoice = item.choice.filter(
       (value) => value.type === ChoiceType.OPTION
@@ -92,7 +96,24 @@ function BlockItemInputField(item: FormBlock) {
       item.choice,
       item.choice.length,
       newChoice
-    );
+    ).sort((a, b) => {
+      if (a.type == b.type) {
+        return 0;
+      } else if (a.type == ChoiceType.OPTION && b.type == ChoiceType.Other) {
+        return -1;
+      } else {
+        return 1;
+      }
+    });
+
+    const newList = replaceItemAtIndex(formList, index, {
+      ...item,
+      choice: newChoiceList,
+    });
+    setFormList(newList);
+  };
+  const removeChoice = (choiceIndex:number) => {
+    const newChoiceList = removeItemAtIndex(item.choice, choiceIndex);
     const newList = replaceItemAtIndex(formList, index, {
       ...item,
       choice: newChoiceList,
@@ -138,68 +159,52 @@ function BlockItemInputField(item: FormBlock) {
       return (
         <View>
           {item.choice
-            .filter((item) => item.type === ChoiceType.OPTION)
             .map((item, index) => (
               <View
                 key={index}
                 style={{
                   flexDirection: "row",
+                  flex: 1,
+                  justifyContent: "space-between",
                   alignItems: "center",
-                  margin: 4,
+                  marginStart: 4,
                 }}
               >
-                {isEdit ? (
-                  <FontAwesome5
-                    name="circle"
-                    size={24}
-                    color="black"
-                    enabled={false}
-                  />
-                ) : (
-                  <FontAwesome5.Button
-                    name="circle"
-                    size={24}
-                    color="black"
-                    enabled={false}
-                    onPress={() => {
-                      console.log("click");
+                <View
+                  style={{ flexDirection: "row", backgroundColor: "lightblue" }}
+                >
+                  {isEdit ? (
+                    <FontAwesome5
+                      name="circle"
+                      size={24}
+                      color=  {item.type == ChoiceType.OPTION ? "black" : "lightgray"}
+                    />
+                  ) : (
+                    <FontAwesome5.Button
+                      name="circle"
+                      size={24}
+                      color="black"
+                      enabled={true}
+                      onPress={() => {
+                        console.log("click");
+                      }}
+                    />
+                  )}
+                  <TextInput
+                    style={{
+                      fontSize: DEFAILT_FONTSIZE,
+                      color:
+                        item.type == ChoiceType.OPTION ? "black" : "lightgray",
                     }}
+                    editable={isEdit && item.type === ChoiceType.OPTION}
+                    value={item.title}
+                    onChangeText={(value: string) =>
+                      editChoiceTitle(index, value)
+                    }
                   />
-                )}
-                <TextInput
-                  style={{
-                    fontSize: DEFAILT_FONTSIZE,
-                    color:
-                      item.type == ChoiceType.OPTION ? "black" : "lightgray",
-                  }}
-                  editable={item.type === ChoiceType.OPTION}
-                  value={item.title}
-                  onChangeText={(value: string) =>
-                    editChoiceTitle(index, value)
-                  }
-                />
+                </View>
+                <FontAwesome.Button name="remove" backgroundColor={'white'} size={24} color="black" onPress={()=>removeChoice(index)}/>
               </View>
-            ))}
-          {item.choice
-            .filter((item) => item.type === ChoiceType.Other)
-            .map((item, index) => (
-              <View
-                key={-1}
-                style={{
-                  flexDirection: "row",
-                  marginStart: 8,
-                }}
-              >
-                <FontAwesome5
-                  name="circle"
-                  size={24}
-                  color="lightgray"
-                  enabled={false}
-                />
-                <CustomText style={{color:'darkgray'}}>{item.title}</CustomText>
-                {/* <Text style={{}}>asdf</Text> */}
-              </View>
-              
             ))}
           {/* Add option or add 'other' */}
           <View
@@ -249,7 +254,7 @@ function replaceItemAtIndex<T>(arr: T[], index: number, newValue: T) {
   return [...arr.slice(0, index), newValue, ...arr.slice(index + 1)];
 }
 
-function removeItemAtIndex(arr: FormBlock[], index: number) {
+function removeItemAtIndex<T>(arr: T[], index: number) {
   return [...arr.slice(0, index), ...arr.slice(index + 1)];
 }
 
