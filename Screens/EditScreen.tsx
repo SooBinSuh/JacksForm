@@ -1,7 +1,16 @@
 /** @format */
 
-import React, { PropsWithChildren, useEffect, useState } from "react";
-import { View, Text, Button, StyleSheet, TouchableOpacity } from "react-native";
+import React, { PropsWithChildren, useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  Button,
+  StyleSheet,
+  TouchableOpacity,
+  NativeSyntheticEvent,
+  TextInputChangeEventData,
+  Switch,
+} from "react-native";
 import { RootStackParamList } from "../App";
 import { StackScreenProps } from "@react-navigation/stack";
 import { CustomText } from "../Components/CustomText";
@@ -11,88 +20,201 @@ import { FormBlock, QuestionType } from "../Models/Question";
 import { atom, useRecoilState, useRecoilValue } from "recoil";
 export type EditScreenProps = StackScreenProps<RootStackParamList, "Edit">;
 
-
-//MARKER: ATOM/SELECTORS
+//MARKER: ATOMS
 const formListState = atom<FormBlock[]>({
-  key:'FormList',
-  default:[],
-})
+  key: "FormList",
+  default: [],
+});
+const formIsEditState = atom({
+  key: "FormIsEdit",
+  default: true,
+});
 
-
-
+//MARKER: SELECTORS
 
 const defaultFormBlock = {
+  title: "",
   type: QuestionType.SHORTANSWER,
-  question: "",
+  responseString: undefined,
   choice: undefined,
-  required: false,
+  isRequired: false,
 };
-function BlockItemInputField(type:QuestionType){
-  //get list state(array) from recoil 
-  //compute index 
-  //after setting value -> replace item with index
 
-  switch(type){
+// BlockItem 내의 질문지 및 질문 작성 부분
+function BlockItemInputField(item: FormBlock) {
+  const [longFormHeight, setLongFormHeight] = useState(0);
+  const isEdit = useRecoilValue(formIsEditState);
+  const [formList, setFormList] = useRecoilState(formListState);
+  const index = formList.findIndex((listItem) => item === listItem);
+
+  const editResponseString = (value: string) => {
+    const newList = replaceItemAtIndex(formList, index, {
+      ...item,
+      responseString: value,
+    });
+    setFormList(newList);
+  };
+
+  switch (item.type) {
     case QuestionType.SHORTANSWER:
-      return       <TextInput
-      autoCorrect={false}
-      multiline={true}
-      // onChangeText={}
-      // style={{ marginHorizontal:8,backgroundColor:'gray',height:reset needed }}
-      value={'daf'}
-    />
-    default:
-      <Text>
-        not yet
-      </Text>
+      return (
+        <TextInput
+          editable={!isEdit}
+          selectTextOnFocus={!isEdit}
+          autoCorrect={false}
+          multiline={false}
+          onChangeText={editResponseString}
+          style={{
+            marginHorizontal: 8,
+            backgroundColor: "lightblue",
+            height: 35,
+          }}
+          value={item.responseString}
+          placeholder="Short answer text"
+        />
+      );
 
+    case QuestionType.PARAGRAPH:
+      return (
+        <TextInput
+          editable={!isEdit}
+          selectTextOnFocus={!isEdit}
+          autoCorrect={false}
+          multiline={true}
+          onChangeText={editResponseString}
+          onContentSizeChange={(event) => {
+            setLongFormHeight(event.nativeEvent.contentSize.height);
+          }}
+          style={{ height: Math.max(35, longFormHeight) }}
+          value={item.responseString}
+        />
+      );
+    default:
+      <Text>not yet</Text>;
   }
 }
-function BlockItem(props: { item: FormBlock }) {
-  //TODO: modify,delete,duplicate state with recoil
-  const [title, setTitle] = useState(props.item.question);
-  const [titleHeight, setTitleHeight] = useState(0);
 
+
+//MARKER: Array Item CRUD helper function
+function duplicateItemAtIndex(arr:FormBlock[],index:number){
+  let item = {...arr[index]}
+  return [...arr.slice(0, index+1), item, ...arr.slice(index + 1)];  
+}
+
+function replaceItemAtIndex(
+  arr: FormBlock[],
+  index: number,
+  newValue: FormBlock
+) {
+  return [...arr.slice(0, index), newValue, ...arr.slice(index + 1)];
+}
+
+function removeItemAtIndex(arr: FormBlock[], index: number) {
+  return [...arr.slice(0, index), ...arr.slice(index + 1)];
+}
+
+function BlockItem(props: { item: FormBlock}) {
+  //TODO: modify,delete,duplicate state with recoil
+  const [title, setTitle] = useState(props.item.title);
+  const [titleHeight, setTitleHeight] = useState(0);
+  const [formList, setFormList] = useRecoilState(formListState);
+  const index = formList.findIndex((listItem) => props.item === listItem);
+
+  const toggleIsRequired = (value: boolean) => {
+    const newList = replaceItemAtIndex(formList, index, {
+      ...props.item,
+      isRequired: value,
+    });
+    setFormList(newList);
+  };
+  const onDuplicateBlockPress = ()=>{
+    const newList = duplicateItemAtIndex(formList,index);
+    setFormList(newList);
+  }
+  const onDeleteBlockPress = ()=>{
+    const newList = removeItemAtIndex(formList,index);
+    setFormList(newList);
+  }
+  
   return (
-    <View style={{backgroundColor:'white',paddingVertical:16,marginVertical:8,borderWidth:2,borderRadius:8}}>
+    <View
+      style={{
+        backgroundColor: "white",
+        paddingVertical: 16,
+        marginVertical: 8,
+        borderWidth: 2,
+        borderRadius: 8,
+      }}
+    >
       <TextInput
+        placeholder="Question"
         autoCorrect={false}
         multiline={false}
         onChangeText={setTitle}
         onContentSizeChange={(event) => {
           setTitleHeight(event.nativeEvent.contentSize.height);
         }}
-        style={{ marginHorizontal:8,height: Math.max(35, titleHeight),backgroundColor:'gray' }}
+        style={{
+          marginHorizontal: 8,
+          height: Math.max(35, titleHeight),
+          backgroundColor: "lightgray",
+        }}
         value={title}
       />
-      <Button  title={props.item.type}
-            onPress={() => {
-              console.log("toggle bottom sheet modal")
-            }}/>
-
-            {BlockItemInputField(props.item.type)}
+      <Button
+        title={props.item.type}
+        onPress={() => {
+          console.log("toggle bottom sheet modal");
+        }}
+      />
+      {/* 정답 구조 설정 및 입력 */}
+      {BlockItemInputField(props.item)}
+      <View
+        style={{
+          flexDirection: "row",
+          flex: 1,
+          justifyContent: "flex-end",
+          alignItems: "center",
+          margin: 6,
+        }}
+      >
+        <Text>Required</Text>
+        <Switch
+          trackColor={{ false: "#767577", true: "#81b0ff" }}
+          thumbColor={props.item.isRequired ? "#f5dd4b" : "#f4f3f4"}
+          ios_backgroundColor="#3e3e3e"
+          onValueChange={toggleIsRequired}
+          value={props.item.isRequired}
+        />
+        <Button title="복제"  onPress={onDuplicateBlockPress}/>
+        <Button title="삭제" onPress={onDeleteBlockPress}/>
+      </View>
       {/* TODO: bottom modal sheet for type*/}
-      {/* TODO: conditionally render input Field */}
-
     </View>
   );
 }
 function EditScreen({ navigation, route }: EditScreenProps) {
-  // const [testData,setTestData] = useState<FormBlock[]>([]);
-  // const formList = useRecoilValue(formListState);
-  const [formList,setFormList] = useRecoilState(formListState);
-  
+  const [formList, setFormList] = useRecoilState(formListState);
+  const scrollViewRef = useRef<ScrollView>(null);
 
-  useEffect(()=>{
-    console.log('testData set!',formList);
-  },[formList]);
+  useEffect(() => {
+    console.log("testData set!", formList);
+  }, [formList]);
 
+  //아이템 추가 콜백
   const onCreateBlockPress = () => {
-    setFormList([...formList,{...defaultFormBlock}]);
+    setFormList([...formList, { ...defaultFormBlock }]);
+    //list state 업데이트 이후 스크롤
+    setTimeout(
+      () => scrollViewRef?.current?.scrollToEnd({ animated: true }),
+      500
+    );
   };
+
+
   return (
     <View style={styles.container}>
-      <ScrollView>
+      <ScrollView style={{ flex: 1 }} ref={scrollViewRef}>
         <View style={styles.editContainer}>
           <Button
             title="미리보기"
@@ -103,8 +225,8 @@ function EditScreen({ navigation, route }: EditScreenProps) {
         </View>
 
         <TitleWithDescription />
-        {formList.map((item,index) => (
-          <BlockItem key={index} item={item} />
+        {formList.map((item, index) => (
+          <BlockItem key={index} item={item}/>
         ))}
       </ScrollView>
       <View style={styles.toolsContainer}>
@@ -186,4 +308,9 @@ function TitleWithDescription() {
       </View>
     </>
   );
+}
+// utility for creating unique Id
+let id = 0;
+function getId() {
+  return id++;
 }

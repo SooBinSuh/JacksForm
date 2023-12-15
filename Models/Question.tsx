@@ -1,9 +1,12 @@
 export type FormBlock = {
+    title: string;
     type: QuestionType;
-    question:string;
+    responseString:string|undefined;
     choice : string[] | undefined;
-    required: boolean;
+    isRequired: boolean;
 }
+
+
 
 export enum QuestionType{
     SHORTANSWER = 'ShortAnswer',
