@@ -26,7 +26,7 @@ import {
   FormBlock,
   QuestionType,
 } from "../Models/Question";
-import { atom, useRecoilState, useRecoilValue } from "recoil";
+import { atom, selector, useRecoilState, useRecoilValue } from "recoil";
 export type EditScreenProps = StackScreenProps<RootStackParamList, "Edit">;
 
 //MARKER: ATOMS
@@ -39,7 +39,30 @@ export const formIsEditState = atom({
   default: true,
 });
 
+export const bottomSheetState = atom({
+  key:"BottomSheetState",
+  default:{
+    isVisible:false,
+    selectedIndex:-1,
+  }
+})
 //MARKER: SELECTORS
+// const bottomSheetVisibileState = selector({
+//   key: 'BottomSheetVisibileState',
+//   get: ({get}) => {
+//     const filter = get(todoListFilterState);
+//     const list = get(todoListState);
+
+//     switch (filter) {
+//       case 'Show Completed':
+//         return list.filter((item) => item.isComplete);
+//       case 'Show Uncompleted':
+//         return list.filter((item) => !item.isComplete);
+//       default:
+//         return list;
+//     }
+//   },
+// });
 
 //MARKER: default data only for dev
 const defaultFormBlock: FormBlock = {
@@ -322,7 +345,9 @@ function removeItemAtIndex<T>(arr: T[], index: number) {
 function BlockItem(props: { item: FormBlock }) {
   const [titleHeight, setTitleHeight] = useState(0);
   const [formList, setFormList] = useRecoilState(formListState);
+  const [bottomState,setBottomSheetState] = useRecoilState(bottomSheetState);
   const index = formList.findIndex((listItem) => props.item === listItem);
+
 
   const editTitle = (value: string) => {
     const newList = replaceItemAtIndex(formList, index, {
@@ -376,6 +401,7 @@ function BlockItem(props: { item: FormBlock }) {
         title={props.item.type}
         onPress={() => {
           console.log("toggle bottom sheet modal");
+          setBottomSheetState({...bottomState,isVisible:true});
         }}
       />
       {/* 정답 구조 설정 및 입력 */}
