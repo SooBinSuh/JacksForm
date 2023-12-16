@@ -104,10 +104,15 @@ function BlockItemInputField(item: FormBlock) {
 
   //MARKER: Intents
   const toggleChoiceItem = (chocieIndex: number) => {
-    const newChoiceList = replaceItemAtIndex(item.choice, chocieIndex, {
+
+    const newChoiceList = item.type == QuestionType.CHECKBOXES ? replaceItemAtIndex(item.choice, chocieIndex, {
       ...item.choice[chocieIndex],
-      isSelected: !item.choice[chocieIndex].isSelected,
-    });
+      isSelected:  !item.choice[chocieIndex].isSelected,
+    }) :
+    item.choice.map((item,index)=>(
+      {...item,isSelected:index === chocieIndex ? !item.isSelected : false}
+    ))
+    ;
     const newList = replaceItemAtIndex(formList, index, {
       ...item,
       choice: newChoiceList,
