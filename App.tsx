@@ -40,7 +40,6 @@ import EditScreen, {
   formListState,
   replaceItemAtIndex,
 } from "./Screens/EditScreen";
-import PreviewScreen from "./Screens/PreviewScreen";
 import { NavigationContainer } from "@react-navigation/native";
 import {
   BottomSheetModalProps,
@@ -74,7 +73,6 @@ export default () => {
 
 function App() {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-  // const state = useRecoilValue(bottomSheetState);
   const [bottomSheet, setbottomSheet] = useRecoilState(bottomSheetState);
   const [formList, setFormList] = useRecoilState(formListState);
 
@@ -131,11 +129,6 @@ function App() {
                   name="Edit"
                   component={EditScreen}
                   options={{ headerShown: false }}
-                />
-                <RootStack.Screen
-                  name="Preview"
-                  component={PreviewScreen}
-                  options={{ headerShown: true }}
                 />
               </RootStack.Navigator>
             </NavigationContainer>

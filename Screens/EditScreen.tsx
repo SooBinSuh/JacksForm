@@ -75,7 +75,10 @@ export const bottomSheetState = atom({
 });
 //MARKER: SELECTORS
 
-// BlockItem 내의 질문지 및 질문 작성 부분
+
+
+
+//MARKER: BlockItem > 질문지 및 질문 작성 부분
 function BlockItemInputField(item: FormBlock) {
   const [longFormHeight, setLongFormHeight] = useState(0);
   const isEdit = useRecoilValue(formIsEditState);
@@ -86,7 +89,7 @@ function BlockItemInputField(item: FormBlock) {
     (value) => value.type === ChoiceType.OPTION
   );
 
-  //MARKER: Intents
+    
   const toggleChoiceItem = (chocieIndex: number) => {
     const newChoiceList =
       item.type == QuestionType.CHECKBOXES
@@ -123,7 +126,7 @@ function BlockItemInputField(item: FormBlock) {
     setFormList(newList);
   };
 
-  //after adding choice, sort so other comes at bottom
+  //Choice 추가 후, 'Other'타입이 항상 하단에 위치하기 정렬한다
   const addChoice = (choiceType: ChoiceType) => {
     const optionChoice = item.choice.filter(
       (value) => value.type === ChoiceType.OPTION
@@ -156,6 +159,7 @@ function BlockItemInputField(item: FormBlock) {
     });
     setFormList(newList);
   };
+
   const removeChoice = (choiceIndex: number) => {
     const newChoiceList = removeItemAtIndex(item.choice, choiceIndex);
     const newList = replaceItemAtIndex(formList, index, {
@@ -283,6 +287,7 @@ function ChoiceAddButton(props: {
     </View>
   );
 }
+
 export function MultipleChoiceItem(props: {
   formBlockItem: FormBlock;
   choiceItem: Choice;
@@ -381,28 +386,16 @@ export function MultipleChoiceItem(props: {
   );
 }
 
-//MARKER: Array Item CRUD helper function
-function duplicateItemAtIndex(arr: FormBlock[], index: number) {
-  let item = { ...arr[index] };
-  return [...arr.slice(0, index + 1), item, ...arr.slice(index + 1)];
-}
-function addItemAfterIndex<T>(arr: T[], index: number, newValue: T) {
-  return [...arr.slice(0, index + 1), newValue, ...arr.slice(index + 1)];
-}
-export function replaceItemAtIndex<T>(arr: T[], index: number, newValue: T) {
-  return [...arr.slice(0, index), newValue, ...arr.slice(index + 1)];
-}
 
-function removeItemAtIndex<T>(arr: T[], index: number) {
-  return [...arr.slice(0, index), ...arr.slice(index + 1)];
-}
 
 function BlockItem(props: { item: FormBlock }) {
   const [titleHeight, setTitleHeight] = useState(0);
   const [formList, setFormList] = useRecoilState(formListState);
   const [bottomState, setBottomSheetState] = useRecoilState(bottomSheetState);
-  const index = formList.findIndex((listItem) => props.item === listItem);
   const isEdit = useRecoilValue(formIsEditState);
+
+  
+  const index = formList.findIndex((listItem) => props.item === listItem);
   const editTitle = (value: string) => {
     const newList = replaceItemAtIndex(formList, index, {
       ...props.item,
@@ -571,7 +564,6 @@ function EditScreen({ navigation, route }: EditScreenProps) {
             title={`${isEdit ? "미리보기" : "수정하기"}`}
             onPress={() => {
               setEdit(!isEdit);
-              // navigation.navigate('Preview');
             }}
           />
         </View>
@@ -689,4 +681,19 @@ function TitleWithDescription() {
       )}
     </>
   );
+}
+//MARKER: Array Helper Functions
+function duplicateItemAtIndex(arr: FormBlock[], index: number) {
+  let item = { ...arr[index] };
+  return [...arr.slice(0, index + 1), item, ...arr.slice(index + 1)];
+}
+function addItemAfterIndex<T>(arr: T[], index: number, newValue: T) {
+  return [...arr.slice(0, index + 1), newValue, ...arr.slice(index + 1)];
+}
+export function replaceItemAtIndex<T>(arr: T[], index: number, newValue: T) {
+  return [...arr.slice(0, index), newValue, ...arr.slice(index + 1)];
+}
+
+function removeItemAtIndex<T>(arr: T[], index: number) {
+  return [...arr.slice(0, index), ...arr.slice(index + 1)];
 }
