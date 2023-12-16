@@ -54,7 +54,12 @@ export const formState = atom<Form>({
 
 export var formListState = atom<FormBlock[]>({
   key: "FormList",
-  default: [defaultFormBlock],
+  default: [
+    defaultFormBlock,
+    { ...defaultFormBlock, type: QuestionType.PARAGRAPH },
+    { ...defaultFormBlock, type: QuestionType.CHECKBOXES },
+    { ...defaultFormBlock, type: QuestionType.MULTIPLECHOICE },
+  ],
 });
 export const formIsEditState = atom({
   key: "FormIsEdit",
@@ -98,6 +103,17 @@ function BlockItemInputField(item: FormBlock) {
   );
 
   //MARKER: Intents
+  const toggleChoiceItem = (chocieIndex: number) => {
+    const newChoiceList = replaceItemAtIndex(item.choice, chocieIndex, {
+      ...item.choice[chocieIndex],
+      isSelected: !item.choice[chocieIndex].isSelected,
+    });
+    const newList = replaceItemAtIndex(formList, index, {
+      ...item,
+      choice: newChoiceList,
+    });
+    setFormList(newList);
+  };
   const editResponseString = (value: string) => {
     const newList = replaceItemAtIndex(formList, index, {
       ...item,
@@ -169,13 +185,12 @@ function BlockItemInputField(item: FormBlock) {
           multiline={false}
           onChangeText={editResponseString}
           style={{
-            marginHorizontal: 8,
+            ...styles.shortLongAnswerTextInput,
+            color: isEdit ? "lightgray" : "black",
             height: 35,
-            color: "lightgray",
-            borderBottomWidth: 1.0,
           }}
           value={isEdit ? "Short answer text" : item.responseString}
-          placeholder="Short answer text"
+          placeholder={isEdit ? "Short answer text" : "Your answer"}
         />
       );
 
@@ -191,13 +206,12 @@ function BlockItemInputField(item: FormBlock) {
             setLongFormHeight(event.nativeEvent.contentSize.height);
           }}
           style={{
-            marginHorizontal: 8,
+            ...styles.shortLongAnswerTextInput,
             height: Math.max(35, longFormHeight),
-            color: "lightgray",
-            borderBottomWidth: 1.0,
+            color: isEdit ? "lightgray" : "black",
           }}
           value={isEdit ? "Long answer text" : item.responseString}
-          placeholder="Long answer text"
+          placeholder={isEdit ? "Long answer text" : "Your answer"}
         />
       );
     case QuestionType.MULTIPLECHOICE:
@@ -212,13 +226,16 @@ function BlockItemInputField(item: FormBlock) {
               index={index}
               editChoiceTitle={editChoiceTitle}
               removeChoice={removeChoice}
+              toggleChoice={toggleChoiceItem}
             />
           ))}
-          <ChoiceAddButton
-            item={item}
-            choiceOptions={filteredOption}
-            addChoice={addChoice}
-          />
+          {isEdit && (
+            <ChoiceAddButton
+              item={item}
+              choiceOptions={filteredOption}
+              addChoice={addChoice}
+            />
+          )}
         </View>
       );
 
@@ -282,11 +299,13 @@ export function MultipleChoiceItem(props: {
   index: number;
   editChoiceTitle: (index: number, value: string) => void;
   removeChoice: (index: number) => void;
+  toggleChoice: (choiceIndex: number) => void;
 }) {
   const isEdit = useRecoilValue(formIsEditState);
   const checkBoxIconName = props.choiceItem.isSelected
-    ? "checkbox-active"
-    : "checkbox-passive";
+    ? "check-square"
+    : "square";
+  const circleIconNAme = props.choiceItem.isSelected ? "dot-circle" : "circle";
   return (
     <View
       style={{
@@ -301,39 +320,55 @@ export function MultipleChoiceItem(props: {
         {isEdit ? (
           props.formBlockItem.type == QuestionType.MULTIPLECHOICE ? (
             <FontAwesome5
-              name="circle"
+              name={circleIconNAme}
               size={24}
               color={
-                props.choiceItem.type == ChoiceType.OPTION
-                  ? "black"
-                  : "lightgray"
+                isEdit
+                  ? props.choiceItem.type == ChoiceType.OPTION
+                    ? "black"
+                    : "lightgray"
+                  : "black"
               }
             />
           ) : (
-            <Fontisto name={checkBoxIconName} size={24} color="black" />
+            <FontAwesome5 name={checkBoxIconName} size={24} color="black" />
           )
-        ) : //  <Text>asdf</Text>
-        props.formBlockItem.type == QuestionType.MULTIPLECHOICE ? (
-          <FontAwesome5.Button
-            name="circle"
-            size={24}
-            color="black"
-            enabled={true}
+        ) : props.formBlockItem.type == QuestionType.MULTIPLECHOICE ? (
+          <TouchableWithoutFeedback
             onPress={() => {
-              console.log("click");
+              props.toggleChoice(props.index);
             }}
-          />
+          >
+            <FontAwesome5
+              name={circleIconNAme}
+              size={24}
+              color="black"
+              enabled={true}
+              // style={{width:55}}
+            />
+          </TouchableWithoutFeedback>
         ) : (
-          <Fontisto.Button name={checkBoxIconName} size={24} color="black" />
+          <TouchableWithoutFeedback
+            onPress={() => {
+              props.toggleChoice(props.index);
+            }}
+          >
+            <FontAwesome5
+              // style={{ width: 55,backgroundColor:'green' }}
+              name={checkBoxIconName}
+              size={24}
+              color="black"
+            />
+          </TouchableWithoutFeedback>
         )}
         <TextInput
           style={{
             marginStart: 8,
             fontSize: DEFAILT_FONTSIZE,
-            color:
-              props.choiceItem.type == ChoiceType.OPTION
+            color: isEdit ?
+              (props.choiceItem.type == ChoiceType.OPTION
                 ? "black"
-                : "lightgray",
+                : "lightgray"):"black",
           }}
           editable={isEdit && props.choiceItem.type === ChoiceType.OPTION}
           value={props.choiceItem.title}
@@ -412,35 +447,36 @@ function BlockItem(props: { item: FormBlock }) {
       }}
     >
       {/* MARKER: 질문 제목 및 필수항목 표시*/}
-      <View
-        style={{
-          flexDirection: "row",
-          marginHorizontal: 8,
-          paddingVertical: 8,
-          marginBottom: 8,
-          borderBottomWidth: isEdit ? 1 : 0,
-        }}
-      >
-        <TextInput
-          editable={isEdit}
-          placeholder={isEdit ? "Question" : ""}
-          autoCorrect={false}
-          multiline={false}
-          onChangeText={editTitle}
-          onContentSizeChange={(event) => {
-            setTitleHeight(event.nativeEvent.contentSize.height);
-          }}
+      {!(!isEdit && props.item.title == "" && !props.item.isRequired) && (
+        <View
           style={{
-            height: Math.max(35, titleHeight),
-            backgroundColor: isEdit ? "lightgray" : undefined,
-            fontSize: 20,
+            flexDirection: "row",
+            marginHorizontal: 8,
+            paddingVertical: 8,
+            marginBottom: 8,
+            borderBottomWidth: isEdit ? 1 : 0,
           }}
-          value={props.item.title}
-        />
-        {!isEdit && props.item.isRequired && (
-          <CustomText style={{ color: "red" }}>*</CustomText>
-        )}
-      </View>
+        >
+          <TextInput
+            editable={isEdit}
+            placeholder={isEdit ? "Question" : ""}
+            autoCorrect={false}
+            multiline={false}
+            onChangeText={editTitle}
+            onContentSizeChange={(event) => {
+              setTitleHeight(event.nativeEvent.contentSize.height);
+            }}
+            style={{
+              height: Math.max(35, titleHeight),
+              fontSize: 20,
+            }}
+            value={props.item.title}
+          />
+          {!isEdit && props.item.isRequired && (
+            <CustomText style={{ color: "red" }}>*</CustomText>
+          )}
+        </View>
+      )}
 
       {/*MARKER: 질문 타입 설정 바텀 Sheet 버튼  */}
       {isEdit && (
@@ -506,9 +542,21 @@ function EditScreen({ navigation, route }: EditScreenProps) {
   useEffect(() => {
     console.log("formList count length", formList.length);
   }, [formList]);
+  
   useEffect(() => {
     console.log("isedit changed,", isEdit);
+    if (isEdit && formList.length > 0){
+      resetAllAnswers();
+    }
   }, [isEdit]);
+
+  const resetAllAnswers = ()=>{
+
+    const newFormList = formList.map((item,index)=>(
+      {...item,responseString:'',choice :item.choice.map((item2,index)=>({...item2,isSelected:false}))}
+    ))
+    setFormList(newFormList);
+  }
   //아이템 추가 콜백
   const onCreateBlockPress = () => {
     setFormList([...formList, { ...defaultFormBlock }]);
@@ -536,11 +584,13 @@ function EditScreen({ navigation, route }: EditScreenProps) {
           <BlockItem key={index} item={item} />
         ))}
       </ScrollView>
-      <View style={styles.toolsContainer}>
-        <TouchableOpacity onPress={onCreateBlockPress}>
-          <AntDesign name="pluscircleo" size={24} color="black" />
-        </TouchableOpacity>
-      </View>
+      {isEdit && (
+        <View style={styles.toolsContainer}>
+          <TouchableOpacity onPress={onCreateBlockPress}>
+            <AntDesign name="pluscircleo" size={24} color="black" />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -562,6 +612,10 @@ const styles = StyleSheet.create({
   },
   titleContainer: {},
   descriptionContainer: {},
+  shortLongAnswerTextInput: {
+    marginHorizontal: 8,
+    borderBottomWidth: 1.0,
+  },
 });
 
 export default EditScreen;
