@@ -19,6 +19,11 @@ import { FontAwesome5 } from "@expo/vector-icons";
 import { FontAwesome } from "@expo/vector-icons";
 import { DEFAILT_FONTSIZE } from "../Components/CustomText";
 
+
+export type Form = {
+  title:string;
+  description:string;
+}
 export type FormBlock = {
   title: string;
   type: QuestionType;

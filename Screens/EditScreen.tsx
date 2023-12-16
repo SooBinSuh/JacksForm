@@ -27,16 +27,34 @@ import { AntDesign } from "@expo/vector-icons";
 import {
   Choice,
   ChoiceType,
+  Form,
   FormBlock,
   QuestionType,
 } from "../Models/Question";
 import { atom, selector, useRecoilState, useRecoilValue } from "recoil";
 export type EditScreenProps = StackScreenProps<RootStackParamList, "Edit">;
 
+//MARKER: default data only for dev
+var defaultFormBlock: FormBlock = {
+  title: "",
+  type: QuestionType.SHORTANSWER,
+  responseString: undefined,
+  choice: [{ title: "Option 1", isSelected: false, type: ChoiceType.OPTION }],
+  isRequired: false,
+};
+
 //MARKER: ATOMS
-export const formListState = atom<FormBlock[]>({
+export const formState = atom<Form>({
+  key: "Form",
+  default: {
+    title: "",
+    description: "",
+  },
+});
+
+export var formListState = atom<FormBlock[]>({
   key: "FormList",
-  default: [],
+  default: [defaultFormBlock],
 });
 export const formIsEditState = atom({
   key: "FormIsEdit",
@@ -67,15 +85,6 @@ export const bottomSheetState = atom({
 //     }
 //   },
 // });
-
-//MARKER: default data only for dev
-const defaultFormBlock: FormBlock = {
-  title: "",
-  type: QuestionType.SHORTANSWER,
-  responseString: undefined,
-  choice: [{ title: "Option 1", isSelected: false, type: ChoiceType.OPTION }],
-  isRequired: false,
-};
 
 // BlockItem 내의 질문지 및 질문 작성 부분
 function BlockItemInputField(item: FormBlock) {
@@ -367,7 +376,7 @@ function BlockItem(props: { item: FormBlock }) {
   const [formList, setFormList] = useRecoilState(formListState);
   const [bottomState, setBottomSheetState] = useRecoilState(bottomSheetState);
   const index = formList.findIndex((listItem) => props.item === listItem);
-
+  const isEdit = useRecoilValue(formIsEditState);
   const editTitle = (value: string) => {
     const newList = replaceItemAtIndex(formList, index, {
       ...props.item,
@@ -399,69 +408,93 @@ function BlockItem(props: { item: FormBlock }) {
         marginVertical: 8,
         borderWidth: 2,
         borderRadius: 8,
+        marginHorizontal: isEdit ? 0 : 16,
       }}
     >
-      <TextInput
-        placeholder="Question"
-        autoCorrect={false}
-        multiline={false}
-        onChangeText={editTitle}
-        onContentSizeChange={(event) => {
-          setTitleHeight(event.nativeEvent.contentSize.height);
-        }}
-        style={{
-          marginHorizontal: 8,
-          height: Math.max(35, titleHeight),
-          backgroundColor: "lightgray",
-          fontSize:20,
-          paddingVertical:8,
-          marginBottom:8,
-          borderBottomWidth:1,
-        }}
-        value={props.item.title}
-      />
-
-      <View style={{ flexDirection: "row", justifyContent: "flex-end",paddingEnd:8 }}>
-        <TouchableWithoutFeedback
-          onPress={() => {
-            console.log("toggle bottom sheet modal");
-            setBottomSheetState({ selectedIndex: index, isVisible: true });
-          }}
-        >
-          <View style={{ flexDirection:'row',padding: 14,borderWidth:1,borderRadius:8 }}>
-            <CustomText>{props.item.type}</CustomText>
-            
-          </View>
-        </TouchableWithoutFeedback>
-      </View>
-
-      {/* <Button
-        title={props.item.type}
-        onPress={}
-      /> */}
-      {/* 정답 구조 설정 및 입력 */}
-      {BlockItemInputField(props.item)}
+      {/* MARKER: 질문 제목 및 필수항목 표시*/}
       <View
         style={{
           flexDirection: "row",
-          flex: 1,
-          justifyContent: "flex-end",
-          alignItems: "center",
-          margin: 6,
+          marginHorizontal: 8,
+          paddingVertical: 8,
+          marginBottom: 8,
+          borderBottomWidth: isEdit ? 1 : 0,
         }}
       >
-        <Text>Required</Text>
-        <Switch
-          trackColor={{ false: "#767577", true: "#81b0ff" }}
-          thumbColor={props.item.isRequired ? "#f5dd4b" : "#f4f3f4"}
-          ios_backgroundColor="#3e3e3e"
-          onValueChange={toggleIsRequired}
-          value={props.item.isRequired}
+        <TextInput
+          editable={isEdit}
+          placeholder={isEdit ? "Question" : ""}
+          autoCorrect={false}
+          multiline={false}
+          onChangeText={editTitle}
+          onContentSizeChange={(event) => {
+            setTitleHeight(event.nativeEvent.contentSize.height);
+          }}
+          style={{
+            height: Math.max(35, titleHeight),
+            backgroundColor: isEdit ? "lightgray" : undefined,
+            fontSize: 20,
+          }}
+          value={props.item.title}
         />
-        <Button title="복제" onPress={onDuplicateBlockPress} />
-        <Button title="삭제" onPress={onDeleteBlockPress} />
+        {!isEdit && props.item.isRequired && (
+          <CustomText style={{ color: "red" }}>*</CustomText>
+        )}
       </View>
-      {/* TODO: bottom modal sheet for type*/}
+
+      {/*MARKER: 질문 타입 설정 바텀 Sheet 버튼  */}
+      {isEdit && (
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "flex-end",
+            paddingEnd: 8,
+          }}
+        >
+          <TouchableWithoutFeedback
+            onPress={() => {
+              console.log("toggle bottom sheet modal");
+              setBottomSheetState({ selectedIndex: index, isVisible: true });
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                padding: 14,
+                borderWidth: 1,
+                borderRadius: 8,
+              }}
+            >
+              <CustomText>{props.item.type}</CustomText>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      )}
+
+      {/* MARKER: 정답 구조 설정 및 입력 */}
+      {BlockItemInputField(props.item)}
+      {isEdit && (
+        <View
+          style={{
+            flexDirection: "row",
+            flex: 1,
+            justifyContent: "flex-end",
+            alignItems: "center",
+            margin: 6,
+          }}
+        >
+          <Text>Required</Text>
+          <Switch
+            trackColor={{ false: "#767577", true: "#81b0ff" }}
+            thumbColor={props.item.isRequired ? "#f5dd4b" : "#f4f3f4"}
+            ios_backgroundColor="#3e3e3e"
+            onValueChange={toggleIsRequired}
+            value={props.item.isRequired}
+          />
+          <Button title="복제" onPress={onDuplicateBlockPress} />
+          <Button title="삭제" onPress={onDeleteBlockPress} />
+        </View>
+      )}
     </View>
   );
 }
@@ -469,11 +502,13 @@ function BlockItem(props: { item: FormBlock }) {
 function EditScreen({ navigation, route }: EditScreenProps) {
   const [formList, setFormList] = useRecoilState(formListState);
   const scrollViewRef = useRef<ScrollView>(null);
-
+  const [isEdit, setEdit] = useRecoilState(formIsEditState);
   useEffect(() => {
     console.log("formList count length", formList.length);
   }, [formList]);
-
+  useEffect(() => {
+    console.log("isedit changed,", isEdit);
+  }, [isEdit]);
   //아이템 추가 콜백
   const onCreateBlockPress = () => {
     setFormList([...formList, { ...defaultFormBlock }]);
@@ -488,9 +523,10 @@ function EditScreen({ navigation, route }: EditScreenProps) {
       <ScrollView style={{ flex: 1 }} ref={scrollViewRef}>
         <View style={styles.editContainer}>
           <Button
-            title="미리보기"
+            title={`${isEdit ? "미리보기" : "수정하기"}`}
             onPress={() => {
-              navigation.navigate("Preview");
+              setEdit(!isEdit);
+              // navigation.navigate('Preview');
             }}
           />
         </View>
@@ -515,7 +551,6 @@ const styles = StyleSheet.create({
   },
   editContainer: {
     height: 32,
-    backgroundColor: "red",
     alignItems: "flex-end",
   },
   toolsContainer: {
@@ -532,55 +567,73 @@ const styles = StyleSheet.create({
 export default EditScreen;
 
 function TitleWithDescription() {
-  const [title, setTitle] = useState("");
-  const [titleHeight, setTitleHeight] = useState(0);
+  // const [formList],
+  const [form, setForm] = useRecoilState(formState);
+  const isEdit = useRecoilValue(formIsEditState);
+  const setTitle = (value: string) => {
+    setForm({ ...form, title: value });
+  };
+  const setDescription = (value: string) => {
+    setForm({ ...form, description: value });
+  };
 
-  const [description, setDescription] = useState("");
+  const [titleHeight, setTitleHeight] = useState(0);
   const [descriptionHeight, setDescriptionHeight] = useState(0);
   return (
     <>
       <View
         style={{
           paddingVertical: 10,
+          marginHorizontal: 16,
         }}
       >
-        <CustomText>제목</CustomText>
+        {isEdit && <CustomText>제목</CustomText>}
         {/* TODO: refactor to custom textinput */}
-        <TextInput
-          autoCorrect={false}
-          multiline={false}
-          onChangeText={setTitle}
-          onContentSizeChange={(event) => {
-            setTitleHeight(event.nativeEvent.contentSize.height);
-          }}
-          style={{ height: Math.max(35, titleHeight) }}
-          value={title}
-        />
+        {
+          <TextInput
+            editable={isEdit}
+            autoCorrect={false}
+            multiline={false}
+            onChangeText={setTitle}
+            onContentSizeChange={(event) => {
+              setTitleHeight(event.nativeEvent.contentSize.height);
+            }}
+            style={{
+              height: Math.max(35, titleHeight),
+              borderBottomWidth: isEdit ? 1 : 0,
+              fontWeight: isEdit ? "normal" : "bold",
+              fontSize: isEdit ? 20 : 32,
+            }}
+            value={form.title}
+          />
+        }
       </View>
 
       <View
         style={{
-          backgroundColor: "lightgreen",
           paddingVertical: 10,
+          marginHorizontal: 16,
         }}
       >
-        <CustomText>설명</CustomText>
-        <TextInput
-          autoCorrect={false}
-          multiline={true}
-          onChangeText={setDescription}
-          onContentSizeChange={(event) => {
-            setDescriptionHeight(event.nativeEvent.contentSize.height);
-          }}
-          style={{ height: Math.max(35, descriptionHeight) }}
-          value={description}
-        />
+        {isEdit && <CustomText>설명</CustomText>}
+        {
+          <TextInput
+            editable={isEdit}
+            autoCorrect={false}
+            multiline={true}
+            onChangeText={setDescription}
+            onContentSizeChange={(event) => {
+              setDescriptionHeight(event.nativeEvent.contentSize.height);
+            }}
+            style={{
+              height: Math.max(35, descriptionHeight),
+              borderBottomWidth: isEdit ? 1 : 0,
+              fontSize: 20,
+            }}
+            value={form.description}
+          />
+        }
       </View>
     </>
   );
-}
-// utility for creating unique Id
-let id = 0;
-function getId() {
-  return id++;
 }
