@@ -55,10 +55,10 @@ export const formState = atom<Form>({
 export var formListState = atom<FormBlock[]>({
   key: "FormList",
   default: [
-    defaultFormBlock,
-    { ...defaultFormBlock, type: QuestionType.PARAGRAPH },
-    { ...defaultFormBlock, type: QuestionType.CHECKBOXES },
-    { ...defaultFormBlock, type: QuestionType.MULTIPLECHOICE },
+    // defaultFormBlock,
+    // { ...defaultFormBlock, type: QuestionType.PARAGRAPH },
+    // { ...defaultFormBlock, type: QuestionType.CHECKBOXES },
+    // { ...defaultFormBlock, type: QuestionType.MULTIPLECHOICE },
   ],
 });
 export const formIsEditState = atom({
@@ -74,22 +74,6 @@ export const bottomSheetState = atom({
   },
 });
 //MARKER: SELECTORS
-// const bottomSheetVisibileState = selector({
-//   key: 'BottomSheetVisibileState',
-//   get: ({get}) => {
-//     const filter = get(todoListFilterState);
-//     const list = get(todoListState);
-
-//     switch (filter) {
-//       case 'Show Completed':
-//         return list.filter((item) => item.isComplete);
-//       case 'Show Uncompleted':
-//         return list.filter((item) => !item.isComplete);
-//       default:
-//         return list;
-//     }
-//   },
-// });
 
 // BlockItem 내의 질문지 및 질문 작성 부분
 function BlockItemInputField(item: FormBlock) {
@@ -104,15 +88,16 @@ function BlockItemInputField(item: FormBlock) {
 
   //MARKER: Intents
   const toggleChoiceItem = (chocieIndex: number) => {
-
-    const newChoiceList = item.type == QuestionType.CHECKBOXES ? replaceItemAtIndex(item.choice, chocieIndex, {
-      ...item.choice[chocieIndex],
-      isSelected:  !item.choice[chocieIndex].isSelected,
-    }) :
-    item.choice.map((item,index)=>(
-      {...item,isSelected:index === chocieIndex ? !item.isSelected : false}
-    ))
-    ;
+    const newChoiceList =
+      item.type == QuestionType.CHECKBOXES
+        ? replaceItemAtIndex(item.choice, chocieIndex, {
+            ...item.choice[chocieIndex],
+            isSelected: !item.choice[chocieIndex].isSelected,
+          })
+        : item.choice.map((item, index) => ({
+            ...item,
+            isSelected: index === chocieIndex ? !item.isSelected : false,
+          }));
     const newList = replaceItemAtIndex(formList, index, {
       ...item,
       choice: newChoiceList,
@@ -370,10 +355,11 @@ export function MultipleChoiceItem(props: {
           style={{
             marginStart: 8,
             fontSize: DEFAILT_FONTSIZE,
-            color: isEdit ?
-              (props.choiceItem.type == ChoiceType.OPTION
+            color: isEdit
+              ? props.choiceItem.type == ChoiceType.OPTION
                 ? "black"
-                : "lightgray"):"black",
+                : "lightgray"
+              : "black",
           }}
           editable={isEdit && props.choiceItem.type === ChoiceType.OPTION}
           value={props.choiceItem.title}
@@ -382,7 +368,7 @@ export function MultipleChoiceItem(props: {
           }
         />
       </View>
-      {props.index != 0 && props.formBlockItem.choice.length > 1 && (
+      {props.index != 0 && props.formBlockItem.choice.length > 1 && isEdit && (
         <FontAwesome.Button
           name="remove"
           backgroundColor={"white"}
@@ -421,6 +407,7 @@ function BlockItem(props: { item: FormBlock }) {
     const newList = replaceItemAtIndex(formList, index, {
       ...props.item,
       title: value,
+      responseString: "",
     });
     setFormList(newList);
   };
@@ -474,6 +461,7 @@ function BlockItem(props: { item: FormBlock }) {
             style={{
               height: Math.max(35, titleHeight),
               fontSize: 20,
+              color: "black",
             }}
             value={props.item.title}
           />
@@ -547,21 +535,25 @@ function EditScreen({ navigation, route }: EditScreenProps) {
   useEffect(() => {
     console.log("formList count length", formList.length);
   }, [formList]);
-  
+
   useEffect(() => {
     console.log("isedit changed,", isEdit);
-    if (isEdit && formList.length > 0){
+    if (isEdit && formList.length > 0) {
       resetAllAnswers();
     }
   }, [isEdit]);
 
-  const resetAllAnswers = ()=>{
-
-    const newFormList = formList.map((item,index)=>(
-      {...item,responseString:'',choice :item.choice.map((item2,index)=>({...item2,isSelected:false}))}
-    ))
+  const resetAllAnswers = () => {
+    const newFormList = formList.map((item, index) => ({
+      ...item,
+      responseString: "",
+      choice: item.choice.map((item2, index) => ({
+        ...item2,
+        isSelected: false,
+      })),
+    }));
     setFormList(newFormList);
-  }
+  };
   //아이템 추가 콜백
   const onCreateBlockPress = () => {
     setFormList([...formList, { ...defaultFormBlock }]);
@@ -640,15 +632,14 @@ function TitleWithDescription() {
   const [descriptionHeight, setDescriptionHeight] = useState(0);
   return (
     <>
-      <View
-        style={{
-          paddingVertical: 10,
-          marginHorizontal: 16,
-        }}
-      >
-        {isEdit && <CustomText>제목</CustomText>}
-        {/* TODO: refactor to custom textinput */}
-        {
+      {!(!isEdit && form.title == "") && (
+        <View
+          style={{
+            paddingVertical: 10,
+            marginHorizontal: 16,
+          }}
+        >
+          {isEdit && <CustomText>제목</CustomText>}
           <TextInput
             editable={isEdit}
             autoCorrect={false}
@@ -658,6 +649,7 @@ function TitleWithDescription() {
               setTitleHeight(event.nativeEvent.contentSize.height);
             }}
             style={{
+              color: "black",
               height: Math.max(35, titleHeight),
               borderBottomWidth: isEdit ? 1 : 0,
               fontWeight: isEdit ? "normal" : "bold",
@@ -665,34 +657,36 @@ function TitleWithDescription() {
             }}
             value={form.title}
           />
-        }
-      </View>
-
-      <View
-        style={{
-          paddingVertical: 10,
-          marginHorizontal: 16,
-        }}
-      >
-        {isEdit && <CustomText>설명</CustomText>}
-        {
-          <TextInput
-            editable={isEdit}
-            autoCorrect={false}
-            multiline={true}
-            onChangeText={setDescription}
-            onContentSizeChange={(event) => {
-              setDescriptionHeight(event.nativeEvent.contentSize.height);
-            }}
-            style={{
-              height: Math.max(35, descriptionHeight),
-              borderBottomWidth: isEdit ? 1 : 0,
-              fontSize: 20,
-            }}
-            value={form.description}
-          />
-        }
-      </View>
+        </View>
+      )}
+      {!(!isEdit && form.title == "") && (
+        <View
+          style={{
+            paddingVertical: 10,
+            marginHorizontal: 16,
+          }}
+        >
+          {isEdit && <CustomText>설명</CustomText>}
+          {!(!isEdit && form.description == "") && (
+            <TextInput
+              editable={isEdit}
+              autoCorrect={false}
+              multiline={true}
+              onChangeText={setDescription}
+              onContentSizeChange={(event) => {
+                setDescriptionHeight(event.nativeEvent.contentSize.height);
+              }}
+              style={{
+                color: "black",
+                height: Math.max(35, descriptionHeight),
+                borderBottomWidth: isEdit ? 1 : 0,
+                fontSize: 20,
+              }}
+              value={form.description}
+            />
+          )}
+        </View>
+      )}
     </>
   );
 }
