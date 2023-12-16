@@ -17,7 +17,11 @@ import { Fontisto } from "@expo/vector-icons";
 import { RootStackParamList } from "../App";
 import { StackScreenProps } from "@react-navigation/stack";
 import { CustomText, DEFAILT_FONTSIZE } from "../Components/CustomText";
-import { ScrollView, TextInput } from "react-native-gesture-handler";
+import {
+  ScrollView,
+  TextInput,
+  TouchableWithoutFeedback,
+} from "react-native-gesture-handler";
 import { AntDesign } from "@expo/vector-icons";
 
 import {
@@ -30,7 +34,7 @@ import { atom, selector, useRecoilState, useRecoilValue } from "recoil";
 export type EditScreenProps = StackScreenProps<RootStackParamList, "Edit">;
 
 //MARKER: ATOMS
-const formListState = atom<FormBlock[]>({
+export const formListState = atom<FormBlock[]>({
   key: "FormList",
   default: [],
 });
@@ -40,12 +44,12 @@ export const formIsEditState = atom({
 });
 
 export const bottomSheetState = atom({
-  key:"BottomSheetState",
-  default:{
-    isVisible:false,
-    selectedIndex:-1,
-  }
-})
+  key: "BottomSheetState",
+  default: {
+    isVisible: false,
+    selectedIndex: -1,
+  },
+});
 //MARKER: SELECTORS
 // const bottomSheetVisibileState = selector({
 //   key: 'BottomSheetVisibileState',
@@ -67,7 +71,7 @@ export const bottomSheetState = atom({
 //MARKER: default data only for dev
 const defaultFormBlock: FormBlock = {
   title: "",
-  type: QuestionType.CHECKBOXES,
+  type: QuestionType.SHORTANSWER,
   responseString: undefined,
   choice: [{ title: "Option 1", isSelected: false, type: ChoiceType.OPTION }],
   isRequired: false,
@@ -158,8 +162,10 @@ function BlockItemInputField(item: FormBlock) {
           style={{
             marginHorizontal: 8,
             height: 35,
+            color: "lightgray",
+            borderBottomWidth: 1.0,
           }}
-          value={item.responseString}
+          value={isEdit ? "Short answer text" : item.responseString}
           placeholder="Short answer text"
         />
       );
@@ -175,8 +181,14 @@ function BlockItemInputField(item: FormBlock) {
           onContentSizeChange={(event) => {
             setLongFormHeight(event.nativeEvent.contentSize.height);
           }}
-          style={{ height: Math.max(35, longFormHeight) }}
-          value={item.responseString}
+          style={{
+            marginHorizontal: 8,
+            height: Math.max(35, longFormHeight),
+            color: "lightgray",
+            borderBottomWidth: 1.0,
+          }}
+          value={isEdit ? "Long answer text" : item.responseString}
+          placeholder="Long answer text"
         />
       );
     case QuestionType.MULTIPLECHOICE:
@@ -217,7 +229,7 @@ function ChoiceAddButton(props: {
       style={{
         flexDirection: "row",
         marginStart: 10,
-        justifyContent:'flex-start',
+        justifyContent: "flex-start",
         alignItems: "center",
       }}
     >
@@ -229,7 +241,13 @@ function ChoiceAddButton(props: {
           enabled={false}
         />
       ) : (
-        <Fontisto.Button name={checkBoxIconName} size={24} color="black" backgroundColor='white' style={{ overflow:'hidden' }}/>
+        <Fontisto.Button
+          name={checkBoxIconName}
+          size={24}
+          color="black"
+          backgroundColor="white"
+          style={{ overflow: "hidden" }}
+        />
       )}
 
       <Button
@@ -315,13 +333,15 @@ export function MultipleChoiceItem(props: {
           }
         />
       </View>
-      <FontAwesome.Button
-        name="remove"
-        backgroundColor={"white"}
-        size={24}
-        color="black"
-        onPress={() => props.removeChoice(props.index)}
-      />
+      {props.index != 0 && props.formBlockItem.choice.length > 1 && (
+        <FontAwesome.Button
+          name="remove"
+          backgroundColor={"white"}
+          size={24}
+          color="black"
+          onPress={() => props.removeChoice(props.index)}
+        />
+      )}
     </View>
   );
 }
@@ -334,7 +354,7 @@ function duplicateItemAtIndex(arr: FormBlock[], index: number) {
 function addItemAfterIndex<T>(arr: T[], index: number, newValue: T) {
   return [...arr.slice(0, index + 1), newValue, ...arr.slice(index + 1)];
 }
-function replaceItemAtIndex<T>(arr: T[], index: number, newValue: T) {
+export function replaceItemAtIndex<T>(arr: T[], index: number, newValue: T) {
   return [...arr.slice(0, index), newValue, ...arr.slice(index + 1)];
 }
 
@@ -345,9 +365,8 @@ function removeItemAtIndex<T>(arr: T[], index: number) {
 function BlockItem(props: { item: FormBlock }) {
   const [titleHeight, setTitleHeight] = useState(0);
   const [formList, setFormList] = useRecoilState(formListState);
-  const [bottomState,setBottomSheetState] = useRecoilState(bottomSheetState);
+  const [bottomState, setBottomSheetState] = useRecoilState(bottomSheetState);
   const index = formList.findIndex((listItem) => props.item === listItem);
-
 
   const editTitle = (value: string) => {
     const newList = replaceItemAtIndex(formList, index, {
@@ -394,16 +413,32 @@ function BlockItem(props: { item: FormBlock }) {
           marginHorizontal: 8,
           height: Math.max(35, titleHeight),
           backgroundColor: "lightgray",
+          fontSize:20,
+          paddingVertical:8,
+          marginBottom:8,
+          borderBottomWidth:1,
         }}
         value={props.item.title}
       />
-      <Button
+
+      <View style={{ flexDirection: "row", justifyContent: "flex-end",paddingEnd:8 }}>
+        <TouchableWithoutFeedback
+          onPress={() => {
+            console.log("toggle bottom sheet modal");
+            setBottomSheetState({ selectedIndex: index, isVisible: true });
+          }}
+        >
+          <View style={{ flexDirection:'row',padding: 14,borderWidth:1,borderRadius:8 }}>
+            <CustomText>{props.item.type}</CustomText>
+            
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
+
+      {/* <Button
         title={props.item.type}
-        onPress={() => {
-          console.log("toggle bottom sheet modal");
-          setBottomSheetState({...bottomState,isVisible:true});
-        }}
-      />
+        onPress={}
+      /> */}
       {/* 정답 구조 설정 및 입력 */}
       {BlockItemInputField(props.item)}
       <View

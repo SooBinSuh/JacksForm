@@ -35,7 +35,11 @@ import {
 } from "recoil";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { createStackNavigator } from "@react-navigation/stack";
-import EditScreen, { bottomSheetState } from "./Screens/EditScreen";
+import EditScreen, {
+  bottomSheetState,
+  formListState,
+  replaceItemAtIndex,
+} from "./Screens/EditScreen";
 import PreviewScreen from "./Screens/PreviewScreen";
 import { NavigationContainer } from "@react-navigation/native";
 import {
@@ -44,8 +48,13 @@ import {
   BottomSheetModal,
   BottomSheetModalProvider,
 } from "@gorhom/bottom-sheet";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import {
+  GestureHandlerRootView,
+  TouchableWithoutFeedback,
+} from "react-native-gesture-handler";
 import { BottomSheetBackdropProps } from "@gorhom/bottom-sheet/lib/typescript/components/bottomSheetBackdrop/types";
+import { ChoiceType, QuestionType } from "./Models/Question";
+import { CustomText } from "./Components/CustomText";
 
 // MARKER: navigation setup
 export type RootStackParamList = {
@@ -65,32 +74,50 @@ export default () => {
 
 function App() {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-  const state = useRecoilValue(bottomSheetState);
-  // const snapPoints = useMemo(() => [0,-1], []);
-  // const snapPoints = ['20%'];
-  const [backdropPressBehavior, setBackdropPressBehavior] = useState<
-    "none" | "close" | "collapse"
-  >("close");
+  // const state = useRecoilValue(bottomSheetState);
+  const [bottomSheet, setbottomSheet] = useRecoilState(bottomSheetState);
+  const [formList, setFormList] = useRecoilState(formListState);
 
   useEffect(() => {
-    console.log("state changed!,", state);
-    if (state.isVisible) {
+    if (bottomSheet.isVisible) {
       bottomSheetModalRef.current?.present();
     }
-  }, [state]);
+  }, [bottomSheet]);
+
+  const onBottomSheetChocieTypePressed = (type: QuestionType) => {
+    //if state 올바르지 않은 값 OR 이미 선택한 타입 선택이면 리턴
+    if (
+      bottomSheet.selectedIndex == -1 ||
+      formList[bottomSheet.selectedIndex].type === type
+    ) {
+      bottomSheetModalRef.current?.dismiss();
+      return;
+    }
+    const form = formList[bottomSheet.selectedIndex];
+
+    const newForm = replaceItemAtIndex(formList, bottomSheet.selectedIndex, {
+      ...form,
+      type: type,
+      choice: [
+        { title: "Option 1", isSelected: false, type: ChoiceType.OPTION },
+      ],
+    });
+    setFormList(newForm);
+    bottomSheetModalRef.current?.dismiss();
+  };
+
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
       <BottomSheetBackdrop
-      style={{backgroundColor:'red'}}
+        style={{ backgroundColor: "red" }}
         {...props}
         enableTouchThrough={false}
         disappearsOnIndex={-1}
         appearsOnIndex={0}
-        pressBehavior={backdropPressBehavior}
-        onPress={()=>{console.log('a')}}
+        pressBehavior={"close"}
       />
     ),
-    [backdropPressBehavior]
+    []
   );
 
   return (
@@ -113,18 +140,42 @@ function App() {
               </RootStack.Navigator>
             </NavigationContainer>
             <BottomSheetModal
-            ref={bottomSheetModalRef}
+              ref={bottomSheetModalRef}
               backdropComponent={renderBackdrop}
-              
-              // snapPoints={snapPoints}
-              snapPoints={["40%"]}
-              onDismiss={()=>{console.log('dismissed')}}
+              snapPoints={["50%"]}
+              onDismiss={() => {
+                setbottomSheet({ ...bottomSheet, isVisible: false });
+              }}
               enablePanDownToClose={true}
-              // handleComponent={()=><></>}
-              // handleHeight={10}
             >
-              <View>
-                <Text>Awesome 🎉</Text>
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: "space-evenly",
+                  paddingVertical: 16,
+                  alignItems: "flex-start",
+                  paddingStart: 16,
+                }}
+              >
+                {Object.values(QuestionType).map((value, index) => (
+                  <TouchableWithoutFeedback
+                    key={index}
+                    onPress={() => onBottomSheetChocieTypePressed(value)}
+                    style={{ padding: 16 }}
+                  >
+                    <CustomText
+                      style={{
+                        color: `${
+                          formList[bottomSheet.selectedIndex]?.type === value
+                            ? "blue"
+                            : "black"
+                        }`,
+                      }}
+                    >
+                      {value}
+                    </CustomText>
+                  </TouchableWithoutFeedback>
+                ))}
               </View>
             </BottomSheetModal>
           </SafeAreaView>
