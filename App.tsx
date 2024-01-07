@@ -36,9 +36,6 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { createStackNavigator } from "@react-navigation/stack";
 import EditScreen, {
-  bottomSheetState,
-  formListState,
-  replaceItemAtIndex,
 } from "./Screens/EditScreen";
 import { NavigationContainer } from "@react-navigation/native";
 import {
@@ -54,6 +51,8 @@ import {
 import { BottomSheetBackdropProps } from "@gorhom/bottom-sheet/lib/typescript/components/bottomSheetBackdrop/types";
 import { ChoiceType, QuestionType } from "./Models/Question";
 import { CustomText } from "./Components/CustomText";
+import { bottomSheetState, formListState } from "./recoil/edits";
+import { replaceItemAtIndex } from "./util/helpers";
 
 // MARKER: navigation setup
 export type RootStackParamList = {
@@ -124,7 +123,9 @@ function App() {
         <View style={{ flex: 1 }}>
           <SafeAreaView style={styles.AndroidSafeArea}>
             <NavigationContainer>
+
               <RootStack.Navigator initialRouteName="Edit">
+                {/* Edit Screen */}
                 <RootStack.Screen
                   name="Edit"
                   component={EditScreen}
@@ -132,6 +133,8 @@ function App() {
                 />
               </RootStack.Navigator>
             </NavigationContainer>
+
+            {/* Bottom Modal */}
             <BottomSheetModal
               ref={bottomSheetModalRef}
               backdropComponent={renderBackdrop}

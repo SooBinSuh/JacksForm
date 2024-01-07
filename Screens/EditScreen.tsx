@@ -11,8 +11,7 @@ import {
   TextInputChangeEventData,
   Switch,
 } from "react-native";
-import { FontAwesome5 } from "@expo/vector-icons";
-import { FontAwesome } from "@expo/vector-icons";
+
 import { Fontisto } from "@expo/vector-icons";
 import { RootStackParamList } from "../App";
 import { StackScreenProps } from "@react-navigation/stack";
@@ -32,10 +31,18 @@ import {
   QuestionType,
 } from "../Models/Question";
 import { atom, selector, useRecoilState, useRecoilValue } from "recoil";
+import {
+  bottomSheetState,
+  formIsEditState,
+  formListState,
+  formState,
+} from "../recoil/edits";
+import { addItemAfterIndex, removeItemAtIndex, replaceItemAtIndex } from "../util/helpers";
+import BlockContainer from "../Components/EditBlock/BlockContainer";
 export type EditScreenProps = StackScreenProps<RootStackParamList, "Edit">;
 
 //MARKER: default data only for dev
-var defaultFormBlock: FormBlock = {
+const defaultFormBlock: FormBlock = {
   title: "",
   type: QuestionType.SHORTANSWER,
   responseString: undefined,
@@ -43,494 +50,19 @@ var defaultFormBlock: FormBlock = {
   isRequired: false,
 };
 
-//MARKER: ATOMS
-export const formState = atom<Form>({
-  key: "Form",
-  default: {
-    title: "",
-    description: "",
-  },
-});
-
-export var formListState = atom<FormBlock[]>({
-  key: "FormList",
-  default: [
-    // defaultFormBlock,
-    // { ...defaultFormBlock, type: QuestionType.PARAGRAPH },
-    // { ...defaultFormBlock, type: QuestionType.CHECKBOXES },
-    // { ...defaultFormBlock, type: QuestionType.MULTIPLECHOICE },
-  ],
-});
-export const formIsEditState = atom({
-  key: "FormIsEdit",
-  default: true,
-});
-
-export const bottomSheetState = atom({
-  key: "BottomSheetState",
-  default: {
-    isVisible: false,
-    selectedIndex: -1,
-  },
-});
-//MARKER: SELECTORS
 
 
 
-
-//MARKER: BlockItem > 질문지 및 질문 작성 부분
-function BlockItemInputField(item: FormBlock) {
-  const [longFormHeight, setLongFormHeight] = useState(0);
-  const isEdit = useRecoilValue(formIsEditState);
-  const [formList, setFormList] = useRecoilState(formListState);
-  const index = formList.findIndex((listItem) => item === listItem);
-
-  const filteredOption = item.choice.filter(
-    (value) => value.type === ChoiceType.OPTION
-  );
-
-    
-  const toggleChoiceItem = (chocieIndex: number) => {
-    const newChoiceList =
-      item.type == QuestionType.CHECKBOXES
-        ? replaceItemAtIndex(item.choice, chocieIndex, {
-            ...item.choice[chocieIndex],
-            isSelected: !item.choice[chocieIndex].isSelected,
-          })
-        : item.choice.map((item, index) => ({
-            ...item,
-            isSelected: index === chocieIndex ? !item.isSelected : false,
-          }));
-    const newList = replaceItemAtIndex(formList, index, {
-      ...item,
-      choice: newChoiceList,
-    });
-    setFormList(newList);
-  };
-  const editResponseString = (value: string) => {
-    const newList = replaceItemAtIndex(formList, index, {
-      ...item,
-      responseString: value,
-    });
-    setFormList(newList);
-  };
-  const editChoiceTitle = (choiceIndex: number, value: string) => {
-    const newChoice = replaceItemAtIndex(item.choice, choiceIndex, {
-      ...item.choice[choiceIndex],
-      title: value,
-    });
-    const newList = replaceItemAtIndex(formList, index, {
-      ...item,
-      choice: newChoice,
-    });
-    setFormList(newList);
-  };
-
-  //Choice 추가 후, 'Other'타입이 항상 하단에 위치하기 정렬한다
-  const addChoice = (choiceType: ChoiceType) => {
-    const optionChoice = item.choice.filter(
-      (value) => value.type === ChoiceType.OPTION
-    );
-    const newChoice: Choice = {
-      title:
-        choiceType == ChoiceType.Other
-          ? "Other..."
-          : "Option " + (optionChoice.length + 1),
-      isSelected: false,
-      type: choiceType,
-    };
-    const newChoiceList = addItemAfterIndex(
-      item.choice,
-      item.choice.length,
-      newChoice
-    ).sort((a, b) => {
-      if (a.type == b.type) {
-        return 0;
-      } else if (a.type == ChoiceType.OPTION && b.type == ChoiceType.Other) {
-        return -1;
-      } else {
-        return 1;
-      }
-    });
-
-    const newList = replaceItemAtIndex(formList, index, {
-      ...item,
-      choice: newChoiceList,
-    });
-    setFormList(newList);
-  };
-
-  const removeChoice = (choiceIndex: number) => {
-    const newChoiceList = removeItemAtIndex(item.choice, choiceIndex);
-    const newList = replaceItemAtIndex(formList, index, {
-      ...item,
-      choice: newChoiceList,
-    });
-    setFormList(newList);
-  };
-
-  switch (item.type) {
-    case QuestionType.SHORTANSWER:
-      return (
-        <TextInput
-          editable={!isEdit}
-          selectTextOnFocus={!isEdit}
-          autoCorrect={false}
-          multiline={false}
-          onChangeText={editResponseString}
-          style={{
-            ...styles.shortLongAnswerTextInput,
-            color: isEdit ? "lightgray" : "black",
-            height: 35,
-          }}
-          value={isEdit ? "Short answer text" : item.responseString}
-          placeholder={isEdit ? "Short answer text" : "Your answer"}
-        />
-      );
-
-    case QuestionType.PARAGRAPH:
-      return (
-        <TextInput
-          editable={!isEdit}
-          selectTextOnFocus={!isEdit}
-          autoCorrect={false}
-          multiline={true}
-          onChangeText={editResponseString}
-          onContentSizeChange={(event) => {
-            setLongFormHeight(event.nativeEvent.contentSize.height);
-          }}
-          style={{
-            ...styles.shortLongAnswerTextInput,
-            height: Math.max(35, longFormHeight),
-            color: isEdit ? "lightgray" : "black",
-          }}
-          value={isEdit ? "Long answer text" : item.responseString}
-          placeholder={isEdit ? "Long answer text" : "Your answer"}
-        />
-      );
-    case QuestionType.MULTIPLECHOICE:
-    case QuestionType.CHECKBOXES:
-      return (
-        <View>
-          {item.choice.map((choiceItem, index) => (
-            <MultipleChoiceItem
-              key={index}
-              formBlockItem={item}
-              choiceItem={choiceItem}
-              index={index}
-              editChoiceTitle={editChoiceTitle}
-              removeChoice={removeChoice}
-              toggleChoice={toggleChoiceItem}
-            />
-          ))}
-          {isEdit && (
-            <ChoiceAddButton
-              item={item}
-              choiceOptions={filteredOption}
-              addChoice={addChoice}
-            />
-          )}
-        </View>
-      );
-
-    default:
-      return <Text>DEFAULT</Text>;
-  }
-}
-function ChoiceAddButton(props: {
-  item: FormBlock;
-  choiceOptions: Choice[];
-  addChoice: (value: ChoiceType) => void;
-}) {
-  const checkBoxIconName = "checkbox-passive";
-
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        marginStart: 10,
-        justifyContent: "flex-start",
-        alignItems: "center",
-      }}
-    >
-      {props.item.type == QuestionType.MULTIPLECHOICE ? (
-        <FontAwesome5
-          name="circle"
-          size={24}
-          color="lightgray"
-          enabled={false}
-        />
-      ) : (
-        <Fontisto.Button
-          name={checkBoxIconName}
-          size={24}
-          color="black"
-          backgroundColor="white"
-          style={{ overflow: "hidden" }}
-        />
-      )}
-
-      <Button
-        color="lightgray"
-        title="Add option"
-        onPress={() => props.addChoice(ChoiceType.OPTION)}
-      />
-      {props.choiceOptions.length === props.item.choice.length && (
-        <>
-          <CustomText>or</CustomText>
-          <Button
-            title="add 'Other'"
-            onPress={() => props.addChoice(ChoiceType.Other)}
-          />
-        </>
-      )}
-    </View>
-  );
-}
-
-export function MultipleChoiceItem(props: {
-  formBlockItem: FormBlock;
-  choiceItem: Choice;
-  index: number;
-  editChoiceTitle: (index: number, value: string) => void;
-  removeChoice: (index: number) => void;
-  toggleChoice: (choiceIndex: number) => void;
-}) {
-  const isEdit = useRecoilValue(formIsEditState);
-  const checkBoxIconName = props.choiceItem.isSelected
-    ? "check-square"
-    : "square";
-  const circleIconNAme = props.choiceItem.isSelected ? "dot-circle" : "circle";
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        flex: 1,
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginStart: 4,
-      }}
-    >
-      <View style={{ flexDirection: "row" }}>
-        {isEdit ? (
-          props.formBlockItem.type == QuestionType.MULTIPLECHOICE ? (
-            <FontAwesome5
-              name={circleIconNAme}
-              size={24}
-              color={
-                isEdit
-                  ? props.choiceItem.type == ChoiceType.OPTION
-                    ? "black"
-                    : "lightgray"
-                  : "black"
-              }
-            />
-          ) : (
-            <FontAwesome5 name={checkBoxIconName} size={24} color="black" />
-          )
-        ) : props.formBlockItem.type == QuestionType.MULTIPLECHOICE ? (
-          <TouchableWithoutFeedback
-            onPress={() => {
-              props.toggleChoice(props.index);
-            }}
-          >
-            <FontAwesome5
-              name={circleIconNAme}
-              size={24}
-              color="black"
-              enabled={true}
-              // style={{width:55}}
-            />
-          </TouchableWithoutFeedback>
-        ) : (
-          <TouchableWithoutFeedback
-            onPress={() => {
-              props.toggleChoice(props.index);
-            }}
-          >
-            <FontAwesome5
-              // style={{ width: 55,backgroundColor:'green' }}
-              name={checkBoxIconName}
-              size={24}
-              color="black"
-            />
-          </TouchableWithoutFeedback>
-        )}
-        <TextInput
-          style={{
-            marginStart: 8,
-            fontSize: DEFAILT_FONTSIZE,
-            color: isEdit
-              ? props.choiceItem.type == ChoiceType.OPTION
-                ? "black"
-                : "lightgray"
-              : "black",
-          }}
-          editable={isEdit && props.choiceItem.type === ChoiceType.OPTION}
-          value={props.choiceItem.title}
-          onChangeText={(value: string) =>
-            props.editChoiceTitle(props.index, value)
-          }
-        />
-      </View>
-      {props.index != 0 && props.formBlockItem.choice.length > 1 && isEdit && (
-        <FontAwesome.Button
-          name="remove"
-          backgroundColor={"white"}
-          size={24}
-          color="black"
-          onPress={() => props.removeChoice(props.index)}
-        />
-      )}
-    </View>
-  );
-}
-
-
-
-function BlockItem(props: { item: FormBlock }) {
-  const [titleHeight, setTitleHeight] = useState(0);
-  const [formList, setFormList] = useRecoilState(formListState);
-  const [bottomState, setBottomSheetState] = useRecoilState(bottomSheetState);
-  const isEdit = useRecoilValue(formIsEditState);
-
-  
-  const index = formList.findIndex((listItem) => props.item === listItem);
-  const editTitle = (value: string) => {
-    const newList = replaceItemAtIndex(formList, index, {
-      ...props.item,
-      title: value,
-      responseString: "",
-    });
-    setFormList(newList);
-  };
-  const toggleIsRequired = (value: boolean) => {
-    const newList = replaceItemAtIndex(formList, index, {
-      ...props.item,
-      isRequired: value,
-    });
-    setFormList(newList);
-  };
-  const onDuplicateBlockPress = () => {
-    const newList = duplicateItemAtIndex(formList, index);
-    setFormList(newList);
-  };
-  const onDeleteBlockPress = () => {
-    const newList = removeItemAtIndex(formList, index);
-    setFormList(newList);
-  };
-
-  return (
-    <View
-      style={{
-        backgroundColor: "white",
-        paddingVertical: 16,
-        marginVertical: 8,
-        borderWidth: 2,
-        borderRadius: 8,
-        marginHorizontal: isEdit ? 0 : 16,
-      }}
-    >
-      {/* MARKER: 질문 제목 및 필수항목 표시*/}
-      {!(!isEdit && props.item.title == "" && !props.item.isRequired) && (
-        <View
-          style={{
-            flexDirection: "row",
-            marginHorizontal: 8,
-            paddingVertical: 8,
-            marginBottom: 8,
-            borderBottomWidth: isEdit ? 1 : 0,
-          }}
-        >
-          <TextInput
-            editable={isEdit}
-            placeholder={isEdit ? "Question" : ""}
-            autoCorrect={false}
-            multiline={false}
-            onChangeText={editTitle}
-            onContentSizeChange={(event) => {
-              setTitleHeight(event.nativeEvent.contentSize.height);
-            }}
-            style={{
-              height: Math.max(35, titleHeight),
-              fontSize: 20,
-              color: "black",
-            }}
-            value={props.item.title}
-          />
-          {!isEdit && props.item.isRequired && (
-            <CustomText style={{ color: "red" }}>*</CustomText>
-          )}
-        </View>
-      )}
-
-      {/*MARKER: 질문 타입 설정 바텀 Sheet 버튼  */}
-      {isEdit && (
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "flex-end",
-            paddingEnd: 8,
-          }}
-        >
-          <TouchableWithoutFeedback
-            onPress={() => {
-              console.log("toggle bottom sheet modal");
-              setBottomSheetState({ selectedIndex: index, isVisible: true });
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                padding: 14,
-                borderWidth: 1,
-                borderRadius: 8,
-              }}
-            >
-              <CustomText>{props.item.type}</CustomText>
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      )}
-
-      {/* MARKER: 정답 구조 설정 및 입력 */}
-      {BlockItemInputField(props.item)}
-      {isEdit && (
-        <View
-          style={{
-            flexDirection: "row",
-            flex: 1,
-            justifyContent: "flex-end",
-            alignItems: "center",
-            margin: 6,
-          }}
-        >
-          <Text>Required</Text>
-          <Switch
-            trackColor={{ false: "#767577", true: "#81b0ff" }}
-            thumbColor={props.item.isRequired ? "#f5dd4b" : "#f4f3f4"}
-            ios_backgroundColor="#3e3e3e"
-            onValueChange={toggleIsRequired}
-            value={props.item.isRequired}
-          />
-          <Button title="복제" onPress={onDuplicateBlockPress} />
-          <Button title="삭제" onPress={onDeleteBlockPress} />
-        </View>
-      )}
-    </View>
-  );
-}
 
 function EditScreen({ navigation, route }: EditScreenProps) {
   const [formList, setFormList] = useRecoilState(formListState);
   const scrollViewRef = useRef<ScrollView>(null);
   const [isEdit, setEdit] = useRecoilState(formIsEditState);
   useEffect(() => {
-    console.log("formList count length", formList.length);
   }, [formList]);
 
   useEffect(() => {
-    console.log("isedit changed,", isEdit);
+
     if (isEdit && formList.length > 0) {
       resetAllAnswers();
     }
@@ -570,7 +102,7 @@ function EditScreen({ navigation, route }: EditScreenProps) {
 
         <TitleWithDescription />
         {formList.map((item, index) => (
-          <BlockItem key={index} item={item} />
+          <BlockContainer key={index} item={item} />
         ))}
       </ScrollView>
       {isEdit && (
@@ -609,8 +141,8 @@ const styles = StyleSheet.create({
 
 export default EditScreen;
 
+//Form Header, not a shared component
 function TitleWithDescription() {
-  // const [formList],
   const [form, setForm] = useRecoilState(formState);
   const isEdit = useRecoilValue(formIsEditState);
   const setTitle = (value: string) => {
@@ -681,19 +213,4 @@ function TitleWithDescription() {
       )}
     </>
   );
-}
-//MARKER: Array Helper Functions
-function duplicateItemAtIndex(arr: FormBlock[], index: number) {
-  let item = { ...arr[index] };
-  return [...arr.slice(0, index + 1), item, ...arr.slice(index + 1)];
-}
-function addItemAfterIndex<T>(arr: T[], index: number, newValue: T) {
-  return [...arr.slice(0, index + 1), newValue, ...arr.slice(index + 1)];
-}
-export function replaceItemAtIndex<T>(arr: T[], index: number, newValue: T) {
-  return [...arr.slice(0, index), newValue, ...arr.slice(index + 1)];
-}
-
-function removeItemAtIndex<T>(arr: T[], index: number) {
-  return [...arr.slice(0, index), ...arr.slice(index + 1)];
 }
